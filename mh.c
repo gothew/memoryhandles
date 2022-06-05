@@ -171,3 +171,64 @@ static bool rm_branch(struct mh *mh, struct mh_branch *selected_branch,
   --(mh->pool_branches.cur);
   return run;
 }
+
+void mh_free(struct mh *mh) {
+  if (mh->pool_elements.dyn == true) {
+    free(mh->pool_elements.buf);
+  }
+
+  if (mh->pool_branches.dyn == true) {
+    free(mh->pool_branches.buf);
+  }
+}
+
+bool mh_init(struct mh *mh, void *buf_branches, uint16_t len_branches,
+             uint16_t alloc_step_len_branches,
+             uint16_t alloc_maximum_len_brances, void *buf_elements,
+             uint16_t len_elements, uint16_t alloc_step_len_elements,
+             uint16_t alloc_maximum_len_elementsm, uint16_t sizeof_element,
+             void *buf_holes, uint16_t len_holes, uint16_t alloc_step_len_holes,
+             uint16_t alloc_maximum_len_holes) {
+  if (!alloc(&buf_branches, len_branches, sizeof(struct mh_branch))) {
+    return false;
+  }
+
+  if (!alloc(&buf_holes, len_holes, sizeof(struct mh_hole))) {
+    return false;
+  }
+
+  // Create pools
+  mh->pool_branches.dyn = (buf_branches == NULL);
+  mh->pool_branches.buf = buf_branches;
+  mh->pool_branches.cur = 0;
+  mh->pool_branches.len = len_branches;
+  mh->pool_branches.maximum_len = alloc_maximum_len_brances;
+
+  mh->pool_elements.dyn = (buf_elements == NULL);
+  mh->pool_elements.buf = buf_elements;
+  mh->pool_elements.cur = 0;
+  mh->pool_elements.step_len = alloc_step_len_elements;
+  mh->pool_elements.maximum_len = alloc_maximum_len_elementsm;
+  mh->sizeof_element = sizeof_element;
+
+  mh->pool_holes.dyn = (buf_holes == NULL);
+  mh->pool_holes.buf = buf_holes;
+  mh->pool_holes.cur = 0;
+  mh->pool_holes.len = len_holes;
+  mh->pool_holes.step_len = alloc_step_len_holes;
+  mh->pool_holes.maximum_len = alloc_maximum_len_holes;
+
+  // create root
+  mh->selected_branch = (struct mh_branch *)mh->pool_branches.buf;
+  mh->selected_branch->parent = NULL;
+  mh->selected_branch->siblings = NULL;
+  mh->selected_branch->children = NULL;
+  mh->selected_branch->children_len = 0;
+  mh->selected_branch->element_len = 0;
+
+  // register root
+  mh->root = mh->selected_branch;
+  mh->pool_branches.cur = 1;
+  mh->selected_element = 0;
+  return true;
+}
