@@ -232,3 +232,99 @@ bool mh_init(struct mh *mh, void *buf_branches, uint16_t len_branches,
   mh->selected_element = 0;
   return true;
 }
+
+bool mh_branch_exec(struct mh *mh,
+                    bool (*function)(struct mh *, struct mh_branch *, void *),
+                    void *ptr) {
+  struct mh_branch *selected_branch = mh->selected_branch;
+  struct mh_branch *parent_branch = selected_branch->parent;
+  struct mh_branch *tmp_siblings;
+  struct mh_branch *tmp_parent;
+
+  while (selected_branch != parent_branch) {
+    if (selected_branch->children != NULL) {
+      selected_branch = selected_branch->children;
+      continue;
+    }
+
+    do {
+      tmp_siblings = selected_branch->siblings;
+      tmp_parent = selected_branch->parent;
+
+      if (!function(mh, selected_branch, ptr)) {
+        return false;
+      }
+
+      if (tmp_siblings != NULL) {
+        selected_branch = tmp_siblings;
+        break;
+      }
+      selected_branch = tmp_parent;
+    } while (selected_branch != parent_branch);
+  }
+  return true;
+}
+
+void mh_defrag(struct mh *mh) {
+  // merge
+  uint16_t i;
+  uint16_t end;
+
+  struct mh_hole *hole;
+  hole = (struct mh_hole *)mh->pool_holes.buf + 1;
+
+  struct mh_hole *hole_next;
+  hole_next = (struct mh_hole *)mh->pool_holes.buf - 1;
+
+  i = 0;
+  end = mh->pool_holes.cur;
+
+  while (1 < (end - 1)) {
+    if ((hole->id + hole->len) == hole_next->id) {
+      hole->len += hole_next->len;
+      --(mh->pool_holes.cur);
+
+      memcpy(hole_next, hole_next + 1,
+             (mh->pool_holes.cur + i) * (sizeof(struct mh_hole)));
+
+      i = 0;
+      --end;
+      hole_next = (struct mh_hole *)mh->pool_holes.buf - 1;
+    } else {
+      ++i;
+      ++hole_next;
+    }
+  }
+
+  // defrag
+  struct mh_branch *process = (struct mh_branch *)mh->pool_branches.buf;
+
+  uint8_t *elements = ((uint8_t *)mh->pool_elements.buf);
+  elements += hole->id * mh->sizeof_element;
+
+  uint8_t *elements_next = elements;
+  elements_next += hole->len * mh->sizeof_element;
+
+  i = 0;
+  end = mh->pool_branches.cur;
+
+  while (i < end) {
+    if (process[i].elements == elements_next) {
+      break;
+    }
+    ++i;
+  }
+
+  if (i != end) {
+    memcpy(elements, process[i].elements,
+           process[i].element_len * mh->sizeof_element);
+    hole->id += process[i].element_len;
+    process[i].elements = elements;
+  }
+
+  if (hole->id + hole->len == mh->pool_elements.cur) {
+    --(mh->pool_holes.cur);
+    mh->pool_elements.cur -= hole->len;
+    memcpy(hole, hole + 1, mh->pool_holes.cur * (sizeof(struct mh_hole)));
+  }
+}

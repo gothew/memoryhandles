@@ -20,7 +20,7 @@ bool mh_init(struct mh *mh, void *buf_branches, uint16_t len_branches,
              void *buf_holes, uint16_t len_holes, uint16_t alloc_step_len_holes,
              uint16_t alloc_maximum_len_holes);
 
-bool mh_branch_exec(struct bayou *bayou,
+bool mh_branch_exec(struct mh *mh,
                     bool (*function)(struct mh *mh, struct mh_branch *branch,
                                      void *ptr),
                     void *ptr);
