@@ -328,3 +328,90 @@ void mh_defrag(struct mh *mh) {
     memcpy(hole, hole + 1, mh->pool_holes.cur * (sizeof(struct mh_hole)));
   }
 }
+
+void *mh_add_element(struct mh *mh) {
+  struct mh_pool *pool_elements = &(mh->pool_elements);
+
+  if (pool_elements->cur == pool_elements->len) {
+    return NULL;
+  }
+
+  struct mh_branch *selected_branch = mh->selected_branch;
+
+  uint8_t *elements_cur = ((uint8_t *)pool_elements->buf);
+  elements_cur += pool_elements->cur * mh->sizeof_element;
+
+  if (selected_branch->element_len == 0) {
+    selected_branch->elements = elements_cur;
+  }
+
+  uint16_t elements_len = selected_branch->element_len;
+  uint8_t *elements_next = selected_branch->elements;
+  elements_next += elements_len * mh->sizeof_element;
+
+  if ((elements_cur != elements_next) ||
+      (mh->selected_element < (elements_len - 1))) {
+    if (add_branch(mh) == false) {
+      return NULL;
+    }
+
+    selected_branch = mh->selected_branch;
+  }
+
+  mh->selected_element = selected_branch->element_len;
+  ++(selected_branch->element_len);
+  ++(pool_elements->cur);
+
+  return elements_cur;
+}
+
+void mh_rm_branch(struct mh *mh) {
+  struct mh_branch *parent = mh->selected_branch->parent;
+
+  mh_branch_exec(mh, rm_branch, NULL);
+  mh->selected_branch = parent;
+}
+
+void mh_rm_element(struct mh *mh) {
+  uint16_t selected_element = mh->selected_element;
+  uint16_t branch_elements_len = mh->selected_branch->element_len;
+  uint8_t *branch_elements = mh->selected_branch->elements;
+
+  if (branch_elements_len == 0) {
+    return;
+  }
+
+  if ((selected_element + 1) < branch_elements_len) {
+    memcpy(branch_elements + selected_element * mh->sizeof_element,
+           branch_elements + (selected_element + 1) * mh->sizeof_element,
+           (branch_elements_len - selected_element - 1) * mh->sizeof_element);
+  }
+
+  uint8_t *pool_elements_cur_offset = (uint8_t *)mh->pool_elements.buf;
+  pool_elements_cur_offset += mh->pool_elements.cur * mh->sizeof_element;
+
+  if (((branch_elements + branch_elements_len) < pool_elements_cur_offset) &&
+      (mh->pool_holes.cur < mh->pool_holes.len)) {
+    struct mh_hole *new_hole;
+    new_hole = (struct mh_hole *)mh->pool_holes.buf;
+    new_hole += mh->pool_holes.cur;
+
+    uint16_t elements_offset =
+        branch_elements - ((uint8_t *)mh->pool_elements.buf);
+    new_hole->id =
+        (elements_offset / mh->sizeof_element) + branch_elements_len - 1;
+    new_hole->len = 1;
+
+    ++(mh->pool_holes.cur);
+  }
+
+  --(mh->selected_branch->element_len);
+}
+
+uint32_t mh_count_branches(struct mh *mh) {
+  uint32_t count = 0;
+
+  mh_branch_exec(mh, count_branches, &count);
+
+  return count;
+}

@@ -27,7 +27,7 @@ bool mh_branch_exec(struct mh *mh,
 
 void mh_defrag(struct mh *mh);
 
-void mh_add_element(struct mh *mh);
+void *mh_add_element(struct mh *mh);
 
 void mh_rm_branch(struct mh *mh);
 
