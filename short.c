@@ -4,10 +4,20 @@
 #include <stddef.h>
 #include <stdint.h>
 
+void mh_branch_root(struct mh *mh) { mh->selected_branch = mh->root; }
+
 bool mh_element_prev(struct mh *mh) {
   if (mh->selected_element > 0) {
     --(mh->selected_element);
 
+    return true;
+  }
+  return false;
+}
+
+bool mh_branch_sibling(struct mh *mh) {
+  if (mh->selected_branch->siblings != NULL) {
+    mh->selected_branch = mh->selected_branch->siblings;
     return true;
   }
   return false;
