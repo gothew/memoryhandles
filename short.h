@@ -12,4 +12,6 @@ bool mh_branch_sibling(struct mh *mh);
 bool mh_branch_child(struct mh *mh);
 bool mh_element_set(struct mh *mh, uint16_t id);
 
+bool mh_should_defrag(struct mh *mh);
+
 #endif

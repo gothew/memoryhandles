@@ -48,3 +48,5 @@ bool mh_branch_parent(struct mh *mh) {
   }
   return false;
 }
+
+bool mh_should_defrag(struct mh *mh) { return mh->pool_holes.cur > 0; }
